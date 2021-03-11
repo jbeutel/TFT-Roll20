@@ -1,0 +1,129 @@
+var attackScript = attackScript || {};
+/*
+
+edited for TFT by Joe Beutel
+*/
+
+on("chat:message", function (msg) {
+	// Exit if not an api command...
+	if (msg.type != "api") return;
+	
+	// Get the api command...
+	var command = msg.content.split(" ", 1)[0];
+	if (command === "!attack") attackScript.Process(msg);
+});
+
+attackScript.Process = function(msg, who) {
+   	msg = processInlinerolls(msg)
+   	var n = msg.split(" ");
+   	var character = getObj("graphic", n[1]);
+   	var target = getObj("graphic", n[2]);
+	var characterID = character.get("represents");
+	var targetID = target.get("represents");
+	var total = parseInt(n[3], 10);
+    if(total <= ((parseInt(getAttrByName(characterID, "DX")))+parseInt(n[4], 10))) {
+        var damage = parseInt(n[5], 10);
+        blocked = 0;
+        if(parseInt(n[3], 10) == 3){
+            damage += parseInt(n[5], 10)+parseInt(n[5], 10);
+        }
+        if(parseInt(n[3], 10) == 4){
+            damage += parseInt(n[5], 10);
+        }
+        var currentValue = parseInt(target.get("bar3_value"));
+        log(parseInt(n[7],10));
+        log(currentValue);
+        if(parseInt(n[7],10)==1){
+            blocked = parseInt(getAttrByName(targetID, "totalblock", "max"));
+        }
+        if(parseInt(n[7],10)==0){
+            blocked = parseInt(getAttrByName(targetID, "totalblock", "current"));
+        }
+        log(blocked);
+        damage -= blocked;
+        if(damage <0) {
+            damage = 0;
+        }
+        
+        target.set("bar3_value", currentValue - damage);
+        var currentHits = getAttrByName(targetID, "Hits");
+        increaseAttribute(targetID, "Hits", currentHits, damage);
+       /*
+        if(damage>=5){
+        setAttribute(targetID, "hurtmod",2);
+        }
+        if(damage>=8){
+        setAttribute(targetID, "knockdown",2);
+        }*/
+        if(total <= 6) {
+    sendChat("character|"+characterID, "I attack " +target.get("name")+" (armor: "+blocked+")"+" with my " + n[6] + ", roll " + n[3] +" against DX " + getAttrByName(characterID, "DX") + " + " + n[4] + " and hit, dealing " + damage + " damage, and a Crippling Hit!" );
+        
+    }
+    else{
+    sendChat("character|"+characterID, "I attack " +target.get("name")+" (armor: "+blocked+")"+" with my " + n[6] + ", roll " + n[3] +" against DX " + getAttrByName(characterID, "DX") + " + " + n[4] + " and hit, dealing " + damage + " damage!" );    
+    }
+        
+    }
+    else{
+        sendChat("character|"+characterID, "I attack with my " + n[6] + ", roll " + n[3] +" against DX " + getAttrByName(characterID, "DX") + " + " + n[4] + " and miss!");
+        
+    }
+    
+    /*if(parseInt(target.get("bar3_value"))<=0){
+    
+        target.set("tint","red");
+    }*/
+    log(msg);
+
+}
+
+function processInlinerolls(msg) {
+    if (_.has(msg, 'inlinerolls')) {
+        return _.chain(msg.inlinerolls)
+                .reduce(function(previous, current, index) {
+                    previous['$[[' + index + ']]'] = current.results.total || 0;
+                    return previous;
+                },{})
+                .reduce(function(previous, current, index) {
+                    return previous.replace(index, current);
+                }, msg.content)
+                .value();
+    } else {
+        return msg.content;
+    }
+}
+
+function increaseAttribute(char_id, attr_name, curVal,delta) {
+	var attribute = findObjs({
+		_type: "attribute",
+		_characterid: char_id,
+		_name: attr_name
+	})[0];
+
+	if (attribute == undefined) {
+		ModUtils.setAttribute(char_id, attr_name, -1);
+		return;
+	}
+	//log(attribute);
+	attribute.set("current", (parseInt(curVal) + delta).toString());
+	//log(attribute);
+}
+function setAttribute(char_id, attr_name, newVal) {
+    var attribute = findObjs({
+		_type: "attribute",
+		_characterid: char_id,
+		_name: attr_name
+	})[0];
+
+	//log(attribute);
+	if (attribute == undefined) {
+		createObj("attribute", {
+		name: attr_name,
+		current: newVal,
+		characterid: char_id
+		});
+		} else {
+	attribute.set("current", newVal.toString());
+	}
+	//log(attribute);
+}
